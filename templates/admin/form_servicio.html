@@ -1,0 +1,256 @@
+{#
+  admin/form_servicio.html — Formulario Crear/Editar Servicio
+  ============================================================
+  Esta plantilla se reutiliza para DOS acciones diferentes:
+  
+  - accion == 'nuevo'  → Formulario vacío (crear)
+  - accion == 'editar' → Formulario con datos precargados (editar)
+  
+  La variable 'servicio' viene de app.py:
+  - Para nuevo: servicio = None
+  - Para editar: servicio = fila de la DB
+  
+  Patrón de Jinja2: (servicio and servicio['campo']) or ''
+  → Si servicio existe Y tiene el campo, úsalo; si no, usa cadena vacía.
+#}
+{% extends "layout.html" %}
+
+{% block title %}
+  {{ 'Nuevo Servicio' if accion == 'nuevo' else 'Editar Servicio' }} — STEVEN.DEV Admin
+{% endblock %}
+
+{% block content %}
+
+<div class="admin-layout">
+
+  {# ─── SIDEBAR ─── #}
+  <aside class="admin-sidebar">
+    <p class="sidebar-title">// Panel de Control</p>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('admin_dashboard') }}">
+        📋 Servicios
+      </a>
+      <a href="{{ url_for('admin_nuevo') }}" 
+         class="{{ 'active' if accion == 'nuevo' else '' }}">
+        ➕ Nuevo Servicio
+      </a>
+      <a href="{{ url_for('index') }}">
+        🌐 Ver Catálogo
+      </a>
+    </nav>
+  </aside>
+
+  {# ─── FORMULARIO ─── #}
+  <div class="admin-main">
+
+    {# ── ENCABEZADO ── #}
+    <div class="page-header">
+      <p class="page-breadcrumb">
+        <a href="{{ url_for('admin_dashboard') }}">Admin</a> / 
+        <a href="{{ url_for('admin_dashboard') }}">Servicios</a> / 
+        {{ 'Nuevo' if accion == 'nuevo' else 'Editar' }}
+      </p>
+      <h1 class="page-title">
+        {{ '✨ Nuevo Servicio' if accion == 'nuevo' else '✏️ Editar Servicio' }}
+      </h1>
+    </div>
+
+    {# ── FORMULARIO ── #}
+    <div class="form-wrapper">
+      <div class="form-card">
+
+        {#
+          enctype="multipart/form-data" es OBLIGATORIO para subir archivos.
+          Sin esto, el archivo de imagen no se envía al servidor.
+          
+          La acción del formulario varía según si estamos creando o editando.
+        #}
+        <form method="POST"
+              enctype="multipart/form-data"
+              action="{{ url_for('admin_nuevo') if accion == 'nuevo' else url_for('admin_editar', servicio_id=servicio['id']) }}">
+
+          {# ── CAMPO: NOMBRE ── #}
+          <div class="form-group">
+            <label for="nombre" class="form-label">
+              Nombre del Servicio <span class="required">*</span>
+            </label>
+            <input 
+              type="text"
+              id="nombre"
+              name="nombre"
+              class="form-input"
+              placeholder="Ej: Catering Premium para Eventos"
+              required
+              maxlength="200"
+              value="{{ (servicio and servicio['nombre']) or '' }}"
+            >
+          </div>
+
+          {# ── CAMPO: PRECIO ── #}
+          <div class="form-group">
+            <label for="precio" class="form-label">
+              Precio <span class="required">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-prefix">$</span>
+              <input 
+                type="number"
+                id="precio"
+                name="precio"
+                class="form-input"
+                placeholder="0.00"
+                required
+                min="0"
+                step="0.01"
+                value="{{ (servicio and '%.2f'|format(servicio['precio'])) or '' }}"
+              >
+            </div>
+          </div>
+
+          {# ── CAMPO: DESCRIPCIÓN (opcional) ── #}
+          <div class="form-group">
+            <label for="descripcion" class="form-label">
+              Descripción
+              <span style="color: var(--text-muted); font-weight: 400">(opcional)</span>
+            </label>
+            <textarea
+              id="descripcion"
+              name="descripcion"
+              class="form-textarea"
+              placeholder="Describe brevemente el servicio, qué incluye, horarios, etc."
+              maxlength="1000"
+            >{{ (servicio and servicio['descripcion']) or '' }}</textarea>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono)">
+              Si dejas esto vacío, la descripción no se mostrará en el catálogo.
+            </p>
+          </div>
+
+          {# ── CAMPO: IMAGEN ── #}
+          <div class="form-group">
+            <label class="form-label">
+              Imagen del Servicio
+              <span style="color: var(--text-muted); font-weight: 400">(opcional)</span>
+            </label>
+
+            {# 
+              Si estamos editando y hay una imagen, mostrarla como preview.
+              Esto le da feedback visual al admin de la imagen actual.
+            #}
+            {% if servicio and servicio['imagen_url'] %}
+              <div class="image-preview" id="imagePreview" style="margin-bottom: 12px">
+                <img 
+                  src="{{ servicio['imagen_url'] }}" 
+                  alt="Imagen actual"
+                  id="previewImg"
+                  onerror="this.parentElement.style.display='none'"
+                >
+              </div>
+            {% else %}
+              <div class="image-preview" id="imagePreview" style="display:none; margin-bottom: 12px">
+                <img src="" alt="Preview" id="previewImg">
+              </div>
+            {% endif %}
+
+            {# Zona de arrastrar/soltar o click para seleccionar imagen #}
+            <div class="file-upload-zone" id="uploadZone">
+              <input 
+                type="file"
+                name="imagen"
+                id="imagenInput"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+              >
+              <div class="upload-icon">🖼️</div>
+              <p class="upload-text" id="uploadText">
+                {{ 'Reemplazar imagen' if (servicio and servicio['imagen_url']) else 'Haz clic o arrastra una imagen aquí' }}
+              </p>
+              <p class="upload-hint">PNG, JPG, GIF, WEBP — Máx. 5MB</p>
+            </div>
+
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; font-family: var(--font-mono)">
+              Si no subes imagen, se asignará una imagen por defecto automáticamente.
+            </p>
+          </div>
+
+          {# ── CAMPO: ESTADO (toggle) ── #}
+          <div class="form-group">
+            <label class="form-label">Estado del Servicio</label>
+            <div class="toggle-group">
+              <label class="toggle-switch">
+                <input 
+                  type="checkbox"
+                  name="estado"
+                  id="estadoToggle"
+                  {# Marcar como activo por defecto en nuevo, o según valor actual en editar #}
+                  {{ 'checked' if (accion == 'nuevo' or (servicio and servicio['estado'] == 1)) else '' }}
+                >
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label" id="estadoLabel">
+                {{ 'Activo — visible en el catálogo' if (accion == 'nuevo' or (servicio and servicio['estado'] == 1)) else 'Inactivo — oculto del catálogo' }}
+              </span>
+            </div>
+          </div>
+
+          {# ── BOTONES DE ACCIÓN ── #}
+          <div style="display: flex; gap: 12px; padding-top: var(--gap-lg); border-top: 1px solid var(--border)">
+            <button type="submit" class="btn btn-primary">
+              {{ '✨ Crear Servicio' if accion == 'nuevo' else '💾 Guardar Cambios' }}
+            </button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">
+              Cancelar
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+  </div>{# fin .admin-main #}
+</div>{# fin .admin-layout #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  /**
+   * Script del formulario de servicio
+   * ===================================
+   * 1. Preview de imagen antes de subir
+   * 2. Actualizar texto del label del toggle de estado
+   */
+
+  // ── Preview de imagen ──
+  const imagenInput = document.getElementById('imagenInput');
+  const previewImg  = document.getElementById('previewImg');
+  const imagePreview = document.getElementById('imagePreview');
+  const uploadText  = document.getElementById('uploadText');
+
+  if (imagenInput) {
+    imagenInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+        // FileReader permite leer el archivo y mostrar preview sin subirlo
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImg.src = e.target.result;
+          imagePreview.style.display = 'block';
+          uploadText.textContent = '✅ ' + file.name;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // ── Actualizar label del toggle de estado ──
+  const estadoToggle = document.getElementById('estadoToggle');
+  const estadoLabel  = document.getElementById('estadoLabel');
+
+  if (estadoToggle) {
+    estadoToggle.addEventListener('change', function() {
+      estadoLabel.textContent = this.checked 
+        ? 'Activo — visible en el catálogo'
+        : 'Inactivo — oculto del catálogo';
+    });
+  }
+</script>
+{% endblock %}

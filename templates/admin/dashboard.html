@@ -1,0 +1,207 @@
+{#
+  admin/dashboard.html — Panel de Control del Administrador
+  ===========================================================
+  Muestra TODOS los servicios (activos e inactivos) con acciones CRUD:
+  - Crear nuevo servicio
+  - Editar servicio existente
+  - Activar / Desactivar servicio
+  - Eliminar servicio
+#}
+{% extends "layout.html" %}
+
+{% block title %}Admin Dashboard — STEVEN.DEV{% endblock %}
+
+{% block content %}
+
+<div class="admin-layout">
+
+  {# ─── SIDEBAR ─── #}
+  <aside class="admin-sidebar">
+    <p class="sidebar-title">// Panel de Control</p>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('admin_dashboard') }}" class="active">
+        📋 Servicios
+      </a>
+      <a href="{{ url_for('admin_nuevo') }}">
+        ➕ Nuevo Servicio
+      </a>
+      <a href="{{ url_for('index') }}">
+        🌐 Ver Catálogo
+      </a>
+    </nav>
+  </aside>
+
+  {# ─── CONTENIDO PRINCIPAL ADMIN ─── #}
+  <div class="admin-main">
+
+    {# ── ENCABEZADO ── #}
+    <header class="admin-header">
+      <div>
+        <p class="page-breadcrumb">Admin / <span>Servicios</span></p>
+        <h1 class="admin-title">Gestión de <span>Servicios</span></h1>
+      </div>
+      <a href="{{ url_for('admin_nuevo') }}" class="btn btn-primary">
+        + Nuevo Servicio
+      </a>
+    </header>
+
+    {# ── ESTADÍSTICAS RÁPIDAS ── #}
+    {#
+      Calculamos las estadísticas directamente en la plantilla usando 
+      filtros de Jinja2: selectattr filtra objetos por atributo.
+      
+      servicios|selectattr('estado', 'equalto', 1) → solo activos
+      |list|length → convierte a lista y cuenta elementos
+    #}
+    {% set total = servicios|length %}
+    {% set activos = servicios|selectattr('estado', 'equalto', 1)|list|length %}
+    {% set inactivos = total - activos %}
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: var(--primary)">{{ activos }}</div>
+        <div class="stat-label">Activos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color: var(--text-muted)">{{ inactivos }}</div>
+        <div class="stat-label">Inactivos</div>
+      </div>
+    </div>
+
+    {# ── TABLA DE SERVICIOS ── #}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#ID</th>
+            <th>Imagen</th>
+            <th>Nombre</th>
+            <th>Precio</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% if servicios %}
+            {% for s in servicios %}
+            <tr>
+              {# ID #}
+              <td>
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted)">
+                  #{{ s['id'] }}
+                </span>
+              </td>
+
+              {# Miniatura de imagen #}
+              <td>
+                <img 
+                  class="table-thumb"
+                  src="{{ s['imagen_url'] or '/static/img/default.jpg' }}"
+                  alt="{{ s['nombre'] }}"
+                  onerror="this.src='/static/img/default.jpg'"
+                >
+              </td>
+
+              {# Nombre y descripción corta #}
+              <td>
+                <div class="table-name">{{ s['nombre'] }}</div>
+                {% if s['descripcion'] %}
+                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px">
+                    {# Truncar descripción a 50 caracteres con filtro truncate #}
+                    {{ s['descripcion']|truncate(50) }}
+                  </div>
+                {% endif %}
+              </td>
+
+              {# Precio #}
+              <td>
+                <span class="table-price">${{ "%.2f"|format(s['precio']) }}</span>
+              </td>
+
+              {# Badge de estado #}
+              <td>
+                {% if s['estado'] == 1 %}
+                  <span class="badge badge-active">
+                    <span class="badge-dot"></span>Activo
+                  </span>
+                {% else %}
+                  <span class="badge badge-inactive">
+                    <span class="badge-dot"></span>Inactivo
+                  </span>
+                {% endif %}
+              </td>
+
+              {# Acciones: Editar, Toggle, Eliminar #}
+              <td>
+                <div class="table-actions">
+                  {# Botón Editar #}
+                  <a href="{{ url_for('admin_editar', servicio_id=s['id']) }}" 
+                    class="btn btn-outline btn-sm">
+                    ✏️ Editar
+                  </a>
+
+                  {#
+                    Toggle de estado:
+                    - Si está activo → botón para desactivar (amarillo)
+                    - Si está inactivo → botón para activar (verde)
+                    
+                    Usamos un formulario POST por seguridad (no GET).
+                  #}
+                  <form method="POST" 
+                        action="{{ url_for('admin_toggle_estado', servicio_id=s['id']) }}"
+                        style="display:inline">
+                    {% if s['estado'] == 1 %}
+                      <button type="submit" class="btn-toggle-on" 
+                              title="Desactivar este servicio">
+                        ⏸ Pausar
+                      </button>
+                    {% else %}
+                      <button type="submit" class="btn-toggle-off"
+                              title="Activar este servicio">
+                        ▶ Activar
+                      </button>
+                    {% endif %}
+                  </form>
+
+                  {#
+                    Botón Eliminar con confirmación JavaScript.
+                    El formulario POST evita eliminaciones accidentales por URL.
+                  #}
+                  <form method="POST"
+                        action="{{ url_for('admin_eliminar', servicio_id=s['id']) }}"
+                        onsubmit="return confirm('¿Eliminar {{ s['nombre'] }}? Esta acción no se puede deshacer.')"
+                        style="display:inline">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      🗑
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+
+          {% else %}
+            {# Sin servicios #}
+            <tr>
+              <td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted)">
+                No hay servicios registrados.
+                <a href="{{ url_for('admin_nuevo') }}" style="color: var(--primary); margin-left: 8px">
+                  Crear el primero →
+                </a>
+              </td>
+            </tr>
+          {% endif %}
+
+        </tbody>
+      </table>
+    </div>{# fin .table-wrapper #}
+
+  </div>{# fin .admin-main #}
+</div>{# fin .admin-layout #}
+
+{% endblock %}

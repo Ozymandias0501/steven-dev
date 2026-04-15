@@ -1,0 +1,113 @@
+{#
+  layout.html — Plantilla Maestra (Master Layout)
+  =================================================
+  Este archivo es el "esqueleto" de TODAS las páginas.
+  
+  Concepto Jinja2: Los bloques {% block %} son como "espacios en blanco"
+  que cada página hija puede rellenar con su propio contenido.
+  
+  Herencia de plantillas:
+    layout.html (padre)
+      ├── index.html (hijo)
+      ├── admin/dashboard.html (hijo)
+      └── admin/form_servicio.html (hijo)
+#}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  {# El título cambia según la página que extiende este layout #}
+  <title>{% block title %}Plataforma de Servicios{% endblock %}</title>
+  
+  {# Meta descripción para SEO #}
+  <meta name="description" content="{% block meta_description %}Plataforma de gestión de servicios{% endblock %}">
+  
+  {# Hoja de estilos principal — se carga en TODAS las páginas #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/master.css') }}">
+  
+  {# Bloque para agregar CSS adicional específico de cada página #}
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  {# ─── NAVEGACIÓN GLOBAL ─── #}
+  <nav class="navbar">
+    <div class="container">
+      {# Marca/Logo del sitio — url_for() genera la URL correcta automáticamente #}
+      <a href="{{ url_for('index') }}" class="nav-brand">
+        STEVEN.DEV<span>.services</span>
+      </a>
+
+      <div class="nav-links">
+        {# request.endpoint contiene el nombre de la función de la ruta actual #}
+        <a href="{{ url_for('index') }}" 
+           class="{{ 'active' if request.endpoint == 'index' else '' }}">
+          Catálogo
+        </a>
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="{{ 'active' if 'admin' in (request.endpoint or '') else '' }}">
+          Admin Panel
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  {# ─── CONTENIDO PRINCIPAL ─── #}
+  {# Cada página hija reemplazará este bloque con su contenido #}
+  <main>
+    {% block content %}
+    <!-- Las páginas hijas insertan aquí su contenido -->
+    {% endblock %}
+  </main>
+
+  {# ─── FOOTER ─── #}
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-text">
+        STEVEN.DEV<span>.services</span> &mdash; 
+        Sistema construido con <span>Flask</span> + <span>SQLite</span>
+      </p>
+    </div>
+  </footer>
+
+  {# ─── MENSAJES FLASH ─── #}
+  {#
+    get_flashed_messages() obtiene los mensajes guardados con flash() en app.py
+    with_categories=True incluye el tipo (success, error) para estilos distintos
+  #}
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="flash-container" id="flashContainer">
+        {% for category, message in messages %}
+          <div class="flash-message flash-{{ category }}">
+            {% if category == 'success' %}✅{% else %}❌{% endif %}
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {# ─── JAVASCRIPT GLOBAL ─── #}
+  <script>
+    /**
+     * Auto-ocultar mensajes flash después de 4 segundos.
+     * El CSS ya los desvanece, esto los elimina del DOM después.
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+      const flashContainer = document.getElementById('flashContainer');
+      if (flashContainer) {
+        setTimeout(() => {
+          flashContainer.style.display = 'none';
+        }, 4200);
+      }
+    });
+  </script>
+
+  {# Bloque para JavaScript específico de cada página #}
+  {% block extra_js %}{% endblock %}
+
+</body>
+</html>

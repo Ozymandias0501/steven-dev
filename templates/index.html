@@ -1,0 +1,118 @@
+{#
+  index.html — Catálogo Público de Servicios
+  ===========================================
+  Extiende layout.html (hereda navbar, footer, flash messages).
+  
+  Solo muestra servicios con estado=True (filtrado en app.py).
+  Es resiliente: funciona aunque falte imagen o descripción.
+#}
+{% extends "layout.html" %}
+
+{% block title %}Catálogo de Servicios — STEVEN.DEV{% endblock %}
+{% block meta_description %}Explora nuestro catálogo completo de servicios premium.{% endblock %}
+
+{% block content %}
+
+  {# ─── HERO SECTION ─── #}
+  <section class="hero">
+    <div class="container">
+      <p class="hero-eyebrow">// CATÁLOGO ACTIVO</p>
+      <h1 class="hero-title">
+        Servicios <span class="accent">PREMIUM</span><br>
+        a tu alcance
+      </h1>
+      <p class="hero-subtitle">
+        Soluciones profesionales diseñadas para transformar
+        tus eventos en experiencias extraordinarias.
+      </p>
+    </div>
+  </section>
+
+  {# ─── SECCIÓN DE SERVICIOS ─── #}
+  <section class="services-section">
+    <div class="container">
+
+      {# Encabezado de sección con contador #}
+      <div class="section-header">
+        <span class="section-title">// Servicios disponibles</span>
+        {# 
+          servicios|length: filtro de Jinja2 que cuenta elementos de la lista.
+          El plural/singular se maneja con condicional.
+        #}
+        <span class="section-count">
+          {{ servicios|length }} 
+          {{ 'servicio' if servicios|length == 1 else 'servicios' }}
+        </span>
+      </div>
+
+      {# ─── GRID DE TARJETAS ─── #}
+      <div class="services-grid">
+
+        {#
+          Iteramos sobre la lista de servicios enviada desde app.py.
+          Cada 'servicio' es una fila de la tabla (accesible por nombre de columna).
+        #}
+        {% if servicios %}
+          {% for servicio in servicios %}
+          <article class="service-card">
+
+            {# ── IMAGEN ── #}
+            {# 
+              Resilencia: si imagen_url está vacía, usamos la imagen por defecto.
+              El operador 'or' en Jinja2 devuelve el segundo valor si el primero es falsy.
+            #}
+            <div class="card-image-wrapper">
+              <img 
+                src="{{ servicio['imagen_url'] or '/static/img/default.jpg' }}"
+                alt="Imagen de {{ servicio['nombre'] }}"
+                loading="lazy"
+                onerror="this.src='/static/img/default.jpg'"
+              >
+              {# 
+                onerror: Si la imagen falla al cargar (ruta rota), 
+                JavaScript la reemplaza automáticamente con la default.
+                Esto es la "resiliencia" pedida en los requisitos.
+              #}
+            </div>
+
+            {# ── CUERPO DE LA TARJETA ── #}
+            <div class="card-body">
+              <h2 class="card-name">{{ servicio['nombre'] }}</h2>
+
+              {#
+                Mostrar descripción SOLO si existe y no está vacía.
+                Si descripcion es NULL en SQLite, Jinja2 lo interpreta como falsy.
+                REQUISITO: "oculte la descripción si esta es nula"
+              #}
+              {% if servicio['descripcion'] %}
+                <p class="card-description">{{ servicio['descripcion'] }}</p>
+              {% endif %}
+
+              {# ── PIE DE TARJETA ── #}
+              <div class="card-footer">
+                <span class="card-price">
+                  {# Formatear precio con 2 decimales usando filtro format #}
+                  ${{ "%.2f"|format(servicio['precio']) }}
+                </span>
+                <span class="card-badge">Disponible</span>
+              </div>
+
+            </div>
+          </article>
+          {% endfor %}
+
+        {% else %}
+          {# ── ESTADO VACÍO ── Se muestra si no hay servicios activos #}
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>SIN SERVICIOS DISPONIBLES</h3>
+            <p>El catálogo está vacío. Vuelve pronto.</p>
+          </div>
+        {% endif %}
+
+      </div>{# fin .services-grid #}
+
+    </div>{# fin .container #}
+  </section>
+
+{% endblock %}
